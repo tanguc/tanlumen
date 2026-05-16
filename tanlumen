@@ -19,6 +19,8 @@ DELL="${TANLUMEN_DELL_TAG:-4}"
 BENQ="${TANLUMEN_BENQ_TAG:-3}"
 STATE="$HOME/.local/state/tanlumen.last"
 SNAPSHOT="$HOME/.local/state/tanlumen.snapshot"
+DEBOUNCE_TOKEN="$HOME/.local/state/tanlumen.debounce"
+DEBOUNCE_MS="${TANLUMEN_DEBOUNCE_MS:-1000}"
 mkdir -p "$(dirname "$STATE")"
 
 CONTRAST_MAX=0.90
@@ -82,6 +84,23 @@ apply_silent() {
     fi
   done
   return 1
+}
+
+# debounced silent apply — only fires if no newer focus event arrives within DEBOUNCE_MS
+# fzf calls this on every focus change; rapid scrolling produces zero DDC calls,
+# pausing on a row for >= DEBOUNCE_MS triggers exactly one apply
+debounce_apply() {
+  local target=$1 tier="${2:-med}"
+  local id="$$-$RANDOM-$(date +%s%N 2>/dev/null || date +%s)"
+  printf "%s|%s|%s\n" "$id" "$target" "$tier" > "$DEBOUNCE_TOKEN"
+  (
+    LC_ALL=C awk -v ms="$DEBOUNCE_MS" 'BEGIN{ system("sleep " ms/1000) }'
+    local cur; cur=$(cat "$DEBOUNCE_TOKEN" 2>/dev/null)
+    if [[ "$cur" == "$id|$target|$tier" ]]; then
+      apply_silent "$target" "$tier"
+    fi
+  ) </dev/null >/dev/null 2>&1 &
+  disown 2>/dev/null || true
 }
 
 apply_by_name() {
@@ -179,8 +198,8 @@ pick() {
     done | fzf \
       --prompt="preset (live) > " \
       --height=60% --reverse \
-      --header="step 1/2 — arrow to preview LIVE, Enter to confirm, Esc to revert" \
-      --bind="focus:execute-silent($self _apply {1} med)" \
+      --header="step 1/2 — pause >${DEBOUNCE_MS}ms to preview, Enter to confirm, Esc to revert" \
+      --bind="focus:execute-silent($self _debounce {1} med)" \
       --bind="start:execute-silent($self _apply $(echo "${PRESETS[0]}" | cut -d'|' -f1) med)"
   )
   if [[ -z "$preset" ]]; then
@@ -196,7 +215,7 @@ pick() {
       | fzf \
         --prompt="contrast (live) > " \
         --height=30% --reverse \
-        --header="step 2/2 — [$name] arrow to preview, Enter to commit, Esc keeps med" \
+        --header="step 2/2 — [$name] pause >${DEBOUNCE_MS}ms to preview, Enter to commit, Esc keeps med" \
         --preview-window="right,40%,wrap" \
         --preview='case {} in
           med)  echo "baseline contrast — the preset value as-tuned" ;;
@@ -204,7 +223,7 @@ pick() {
           high) echo "punchier (B+0.15, C+0.20) — brighter, deeper blacks" ;;
         esac' \
         --bind="start:execute-silent($self _apply $name med)" \
-        --bind="focus:execute-silent($self _apply $name {})"
+        --bind="focus:execute-silent($self _debounce $name {})"
   )
   if [[ -z "$tier" ]]; then
     apply_by_name "$name" "med"
@@ -219,7 +238,8 @@ case "${1:-pick}" in
   pick)     pick ;;
   contrast) shift; contrast_nudge "${1:-med}" ;;
   version|--version|-V) echo "tanlumen $VERSION" ;;
-  _apply)   shift; apply_silent "$1" "${2:-med}" ;;
+  _apply)    shift; apply_silent "$1" "${2:-med}" ;;
+  _debounce) shift; debounce_apply "$1" "${2:-med}" ;;
   -h|--help)
     sed -n '2,12p' "$0"; echo; list ;;
   *)        apply_by_name "$1" "${2:-med}" ;;
