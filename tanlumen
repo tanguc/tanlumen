@@ -55,13 +55,13 @@ tier_offsets() {
 apply_raw() {
   local db=$1 dc=$2 bb=$3 bc=$4 r=$5 g=$6 b=$7
   dc=$(clamp_contrast "$dc"); bc=$(clamp_contrast "$bc")
-  for tag in $DELL $BENQ; do
-    if [[ $tag == $DELL ]]; then br=$db; ct=$dc; else br=$bb; ct=$bc; fi
-    "$BD" set --feature=brightness        --tagID=$tag --value=$br >/dev/null 2>&1
-    "$BD" set --feature=contrast          --tagID=$tag --value=$ct >/dev/null 2>&1
-    "$BD" set --feature=redHardwareGain   --tagID=$tag --value=$r  >/dev/null 2>&1
-    "$BD" set --feature=greenHardwareGain --tagID=$tag --value=$g  >/dev/null 2>&1
-    "$BD" set --feature=blueHardwareGain  --tagID=$tag --value=$b  >/dev/null 2>&1
+  for tag in "$DELL" "$BENQ"; do
+    if [[ "$tag" == "$DELL" ]]; then br=$db; ct=$dc; else br=$bb; ct=$bc; fi
+    "$BD" set --feature=brightness        --tagID="$tag" --value="$br" >/dev/null 2>&1
+    "$BD" set --feature=contrast          --tagID="$tag" --value="$ct" >/dev/null 2>&1
+    "$BD" set --feature=redHardwareGain   --tagID="$tag" --value="$r"  >/dev/null 2>&1
+    "$BD" set --feature=greenHardwareGain --tagID="$tag" --value="$g"  >/dev/null 2>&1
+    "$BD" set --feature=blueHardwareGain  --tagID="$tag" --value="$b"  >/dev/null 2>&1
   done
 }
 
@@ -110,9 +110,9 @@ apply_by_name() {
 
 snapshot_save() {
   {
-    for tag in $DELL $BENQ; do
+    for tag in "$DELL" "$BENQ"; do
       for f in brightness contrast redHardwareGain greenHardwareGain blueHardwareGain; do
-        v=$("$BD" get --feature=$f --tagID=$tag 2>/dev/null)
+        v=$("$BD" get --feature="$f" --tagID="$tag" 2>/dev/null)
         echo "$tag $f $v"
       done
     done
@@ -122,7 +122,7 @@ snapshot_save() {
 snapshot_restore() {
   [[ -f "$SNAPSHOT" ]] || return 0
   while read -r tag feat val; do
-    "$BD" set --feature=$feat --tagID=$tag --value=$val >/dev/null 2>&1
+    "$BD" set --feature="$feat" --tagID="$tag" --value="$val" >/dev/null 2>&1
   done < "$SNAPSHOT"
 }
 
@@ -140,12 +140,12 @@ list() {
 }
 
 current() {
-  for tag in $DELL $BENQ; do
-    label=$([ $tag = $DELL ] && echo "Dell  (tag $DELL)" || echo "BenQ  (tag $BENQ)")
+  for tag in "$DELL" "$BENQ"; do
+    label=$([ "$tag" = "$DELL" ] && echo "Dell  (tag $DELL)" || echo "BenQ  (tag $BENQ)")
     printf "%-16s  B=%-6s C=%-6s\n" \
       "$label" \
-      "$($BD get --feature=brightness --tagID=$tag)" \
-      "$($BD get --feature=contrast   --tagID=$tag)"
+      "$("$BD" get --feature=brightness --tagID="$tag")" \
+      "$("$BD" get --feature=contrast   --tagID="$tag")"
   done
   [[ -f "$STATE" ]] && echo "last preset: $(cat "$STATE")"
 }

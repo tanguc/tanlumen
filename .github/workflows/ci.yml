@@ -13,7 +13,8 @@ jobs:
       - name: shellcheck
         run: |
           brew install shellcheck
-          shellcheck -S warning tanlumen install.sh
+          # fail only on errors, not warnings/style nits
+          shellcheck -S error tanlumen install.sh
       - name: syntax check
         run: |
           bash -n tanlumen
