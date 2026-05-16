@@ -6,24 +6,27 @@ Designed for a Dell U2723QE + BenQ EW3270U pair, but the per-display tag IDs are
 
 ## Install
 
-Requires `gh` CLI (private repo, no anonymous downloads):
+Requires `gh` CLI (private repo — anonymous `raw.githubusercontent.com` returns 404):
 
 ```bash
 brew install gh fzf betterdisplay
 gh auth login
-curl -fsSL https://raw.githubusercontent.com/tanguc/tanlumen/main/install.sh | bash
+
+# fetch installer through gh (handles private-repo auth) then run it
+gh api repos/tanguc/tanlumen/contents/install.sh -H "Accept: application/vnd.github.raw" | bash
 ```
 
 Pin a version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tanguc/tanlumen/main/install.sh | bash -s -- v0.1.0
+gh api repos/tanguc/tanlumen/contents/install.sh -H "Accept: application/vnd.github.raw" | bash -s -- v0.1.0
 ```
 
 Custom install location:
 
 ```bash
-TANLUMEN_PREFIX=/usr/local/bin curl -fsSL .../install.sh | bash
+TANLUMEN_PREFIX=/usr/local/bin gh api repos/tanguc/tanlumen/contents/install.sh \
+  -H "Accept: application/vnd.github.raw" | bash
 ```
 
 ## Usage

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # tanlumen installer — downloads latest (or pinned) release from GitHub and installs to ~/.local/bin
 #
-# usage:
-#   curl -fsSL https://raw.githubusercontent.com/tanguc/tanlumen/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/tanguc/tanlumen/main/install.sh | bash -s -- v0.2.0
-#   TANLUMEN_PREFIX=/usr/local/bin curl -fsSL .../install.sh | bash
+# usage (private repo — must go through gh CLI, raw.githubusercontent.com returns 404):
+#   gh api repos/tanguc/tanlumen/contents/install.sh -H "Accept: application/vnd.github.raw" | bash
+#   gh api repos/tanguc/tanlumen/contents/install.sh -H "Accept: application/vnd.github.raw" | bash -s -- v0.2.0
+#   TANLUMEN_PREFIX=/usr/local/bin <same> | bash
 
 set -euo pipefail
 

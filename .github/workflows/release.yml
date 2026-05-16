@@ -60,17 +60,19 @@ jobs:
 
           ## Install
 
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
-          \`\`\`
-
-          Or pin to this version:
+          Private repo — must go through \`gh\` (raw.githubusercontent.com 404s without auth):
 
           \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- $TAG
+          gh api repos/${{ github.repository }}/contents/install.sh -H \"Accept: application/vnd.github.raw\" | bash
           \`\`\`
 
-          Requires \`gh\` CLI (private repo): \`brew install gh && gh auth login\`."
+          Pin this version:
+
+          \`\`\`bash
+          gh api repos/${{ github.repository }}/contents/install.sh -H \"Accept: application/vnd.github.raw\" | bash -s -- $TAG
+          \`\`\`
+
+          Requires \`brew install gh\` + \`gh auth login\`."
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "${{ github.repository }}" --clobber \
