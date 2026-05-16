@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          brew install shellcheck
+          shellcheck -S warning tanlumen install.sh
+      - name: syntax check
+        run: |
+          bash -n tanlumen
+          bash -n install.sh
+      - name: smoke (no BetterDisplay present, only argless paths)
+        run: |
+          # version banner should work without BetterDisplay
+          sed 's/__VERSION__/ci/' tanlumen > /tmp/tanlumen
+          chmod +x /tmp/tanlumen
+          /tmp/tanlumen version
+          /tmp/tanlumen --help | head -5

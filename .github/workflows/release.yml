@@ -1,0 +1,83 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "tag to release (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: stamp version
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          mkdir -p dist
+          sed "s/__VERSION__/$VERSION/" tanlumen > dist/tanlumen
+          chmod +x dist/tanlumen
+          cp install.sh dist/install.sh
+          echo "stamped version: $VERSION"
+          head -5 dist/tanlumen
+
+      - name: smoke test
+        run: |
+          bash -n dist/tanlumen
+          bash -n dist/install.sh
+          dist/tanlumen version
+
+      - name: checksums
+        run: |
+          cd dist
+          shasum -a 256 tanlumen install.sh > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES="Auto-built release from \`$TAG\`.
+
+          ## Install
+
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          \`\`\`
+
+          Or pin to this version:
+
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- $TAG
+          \`\`\`
+
+          Requires \`gh\` CLI (private repo): \`brew install gh && gh auth login\`."
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "${{ github.repository }}" --clobber \
+              dist/tanlumen dist/install.sh dist/SHA256SUMS
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --title "tanlumen $TAG" \
+              --notes "$NOTES" \
+              dist/tanlumen dist/install.sh dist/SHA256SUMS
+          fi
