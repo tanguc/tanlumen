@@ -31,13 +31,13 @@ PRESETS=(
   "coding_evening|0.55|0.75|0.42|0.70|1.00|0.95|0.85|mixed light, mild warmth ~5500K"
   "coding_night|0.28|0.72|0.18|0.68|1.00|0.85|0.65|dark room, warm ~4000K, low strain"
   "reading|0.45|0.70|0.32|0.65|1.00|0.92|0.80|long-form text, paper-like warmth, low glare"
-  "meetings|0.65|0.75|0.50|0.72|1.00|0.97|0.95|video calls, near-neutral for skin tones"
-  "movies|0.40|0.85|0.28|0.80|1.00|1.00|1.00|cinematic, dim + high contrast for black depth"
-  "video|0.65|0.82|0.50|0.78|1.00|0.98|0.92|vibrant streaming/youtube, rich colors, slight warm ~6000K"
-  "gaming|0.75|0.88|0.60|0.82|1.00|1.00|1.00|punchy, max contrast for shadow detail"
-  "design|0.60|0.75|0.48|0.72|1.00|1.00|1.00|photo/design, factory 6500K, print-match"
+  "meetings|0.80|0.78|0.65|0.75|1.00|1.00|1.00|video calls, bright + neutral for accurate skin tones"
+  "movies|0.55|0.85|0.40|0.82|1.00|1.00|1.00|cinema feel — dim-ish but vivid, deep blacks, neutral grade"
+  "video|0.85|0.85|0.68|0.82|1.00|1.00|1.00|streaming/youtube — bright + neutral, vivid colors pop"
+  "gaming|0.90|0.88|0.75|0.85|1.00|1.00|1.00|max brightness, punchy contrast, full saturation"
+  "design|0.75|0.78|0.60|0.75|1.00|1.00|1.00|photo/design, factory 6500K, bright print-match"
   "deepnight|0.15|0.68|0.08|0.65|1.00|0.78|0.55|near-bed ~2700K, heavy red shift"
-  "present|0.95|0.80|0.80|0.75|1.00|1.00|1.00|screen share, max clarity, neutral color"
+  "present|0.95|0.80|0.80|0.78|1.00|1.00|1.00|screen share, max clarity, vivid neutral"
 )
 
 clamp()         { LC_ALL=C awk -v v="$1" 'BEGIN{ if(v<0)v=0; if(v>1)v=1; printf "%.2f", v }'; }
