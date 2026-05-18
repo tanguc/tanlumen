@@ -17,6 +17,8 @@ VERSION="__VERSION__"
 BD="${TANLUMEN_BD:-/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay}"
 DELL="${TANLUMEN_DELL_TAG:-4}"
 BENQ="${TANLUMEN_BENQ_TAG:-3}"
+MBP="${TANLUMEN_MBP_TAG:-1}"
+TAGS=("$DELL" "$BENQ" "$MBP")
 STATE="$HOME/.local/state/tanlumen.last"
 SNAPSHOT="$HOME/.local/state/tanlumen.snapshot"
 DEBOUNCE_TOKEN="$HOME/.local/state/tanlumen.debounce"
@@ -24,61 +26,72 @@ DEBOUNCE_MS="${TANLUMEN_DEBOUNCE_MS:-1000}"
 mkdir -p "$(dirname "$STATE")"
 
 CONTRAST_MAX=0.90
-TIER_LOW_B=-0.15;  TIER_LOW_C=-0.25
-TIER_HIGH_B=0.15;  TIER_HIGH_C=0.20
+# tiers set ABSOLUTE contrast (same for both monitors); preset values used only for color gain
+TIER_LOW_C=0.20
+TIER_MED_C=0.50
+TIER_HIGH_C=0.80
+
+# only these presets may use the high contrast tier (deep blacks are intentional)
+HIGH_CONTRAST_PRESETS="movies gaming"
 
 # format: name|dell_b|dell_c|benq_b|benq_c|rGain|gGain|bGain|description
+# brightness values are hardwareBrightness (real backlight 0.0–1.0)
+# contrast stays near factory default (75/100 DDC); use brightness (backlight) to control eye strain
+# BenQ (VA ~3000:1) needs ~0.08–0.10 lower contrast than Dell (IPS ~1000:1) at same DDC value
 PRESETS=(
-  "coding_day|0.85|0.78|0.70|0.72|1.00|1.00|1.00|bright office, neutral 6500K — beats ambient glare"
-  "coding_evening|0.55|0.75|0.42|0.70|1.00|0.95|0.85|mixed light, mild warmth ~5500K"
-  "coding_night|0.28|0.72|0.18|0.68|1.00|0.85|0.65|dark room, warm ~4000K, low strain"
-  "reading|0.45|0.70|0.32|0.65|1.00|0.92|0.80|long-form text, paper-like warmth, low glare"
-  "meetings|0.80|0.78|0.65|0.75|1.00|1.00|1.00|video calls, bright + neutral for accurate skin tones"
-  "movies|0.55|0.85|0.40|0.82|1.00|1.00|1.00|cinema feel — dim-ish but vivid, deep blacks, neutral grade"
-  "video|0.85|0.85|0.68|0.82|1.00|1.00|1.00|streaming/youtube — bright + neutral, vivid colors pop"
-  "gaming|0.90|0.88|0.75|0.85|1.00|1.00|1.00|max brightness, punchy contrast, full saturation"
-  "design|0.75|0.78|0.60|0.75|1.00|1.00|1.00|photo/design, factory 6500K, bright print-match"
-  "deepnight|0.15|0.68|0.08|0.65|1.00|0.78|0.55|near-bed ~2700K, heavy red shift"
-  "present|0.95|0.80|0.80|0.78|1.00|1.00|1.00|screen share, max clarity, vivid neutral"
+  "coding_day|0.85|0.75|0.70|0.64|1.00|1.00|1.00|bright office, neutral 6500K"
+  "coding_evening|0.55|0.73|0.42|0.62|1.00|0.95|0.85|mixed light, mild warmth ~5500K"
+  "coding_night|0.28|0.72|0.18|0.60|1.00|0.85|0.65|dark room, warm ~4000K, low strain"
+  "reading|0.45|0.72|0.32|0.60|1.00|0.92|0.80|long-form text, paper-like warmth"
+  "meetings|0.80|0.75|0.65|0.64|1.00|1.00|1.00|video calls, bright + neutral skin tones"
+  "movies|0.55|0.80|0.40|0.70|1.00|1.00|1.00|cinema feel — dim-ish, vivid, deep blacks"
+  "video|0.80|0.75|0.65|0.64|1.00|1.00|1.00|streaming/youtube — bright + neutral, vivid"
+  "gaming|0.90|0.82|0.75|0.72|1.00|1.00|1.00|max brightness, punchy, full saturation"
+  "design|0.70|0.75|0.55|0.64|1.00|1.00|1.00|photo/design, neutral 6500K mid"
+  "deepnight|0.15|0.70|0.08|0.57|1.00|0.78|0.55|near-bed ~2700K, heavy red shift"
+  "present|0.95|0.75|0.78|0.64|1.00|1.00|1.00|screen share, max clarity, vivid neutral"
 )
 
-clamp()         { LC_ALL=C awk -v v="$1" 'BEGIN{ if(v<0)v=0; if(v>1)v=1; printf "%.2f", v }'; }
 clamp_contrast(){ LC_ALL=C awk -v v="$1" -v m="$CONTRAST_MAX" 'BEGIN{ if(v<0)v=0; if(v>m)v=m; printf "%.2f", v }'; }
-addf()          { LC_ALL=C awk -v a="$1" -v b="$2" 'BEGIN{ printf "%.2f", a+b }'; }
 
-tier_offsets() {
+allows_high() {
+  local name=$1
+  local p; for p in $HIGH_CONTRAST_PRESETS; do [[ "$p" == "$name" ]] && return 0; done
+  return 1
+}
+
+tier_contrast() {
   case "$1" in
-    low)  echo "$TIER_LOW_B $TIER_LOW_C" ;;
-    high) echo "$TIER_HIGH_B $TIER_HIGH_C" ;;
-    *)    echo "0 0" ;;
+    low)  echo "$TIER_LOW_C" ;;
+    high) echo "$TIER_HIGH_C" ;;
+    *)    echo "$TIER_MED_C" ;;
   esac
 }
 
 apply_raw() {
   local db=$1 dc=$2 bb=$3 bc=$4 r=$5 g=$6 b=$7
   dc=$(clamp_contrast "$dc"); bc=$(clamp_contrast "$bc")
-  for tag in "$DELL" "$BENQ"; do
-    if [[ "$tag" == "$DELL" ]]; then br=$db; ct=$dc; else br=$bb; ct=$bc; fi
-    "$BD" set --feature=brightness        --tagID="$tag" --value="$br" >/dev/null 2>&1
-    "$BD" set --feature=contrast          --tagID="$tag" --value="$ct" >/dev/null 2>&1
-    "$BD" set --feature=redHardwareGain   --tagID="$tag" --value="$r"  >/dev/null 2>&1
-    "$BD" set --feature=greenHardwareGain --tagID="$tag" --value="$g"  >/dev/null 2>&1
-    "$BD" set --feature=blueHardwareGain  --tagID="$tag" --value="$b"  >/dev/null 2>&1
+  for tag in "${TAGS[@]}"; do
+    if [[ "$tag" == "$DELL" ]]; then ct=$dc; else ct=$bc; fi
+    # brightness intentionally not touched — user adjusts backlight manually
+    # MBP built-in has no real DDC contrast (software-gamma only) — skip contrast there
+    if [[ "$tag" != "$MBP" ]]; then
+      "$BD" set --feature=contrast         --tagID="$tag" --value="$ct" >/dev/null 2>&1
+    fi
+    "$BD" set --feature=redHardwareGain    --tagID="$tag" --value="$r"  >/dev/null 2>&1
+    "$BD" set --feature=greenHardwareGain  --tagID="$tag" --value="$g"  >/dev/null 2>&1
+    "$BD" set --feature=blueHardwareGain   --tagID="$tag" --value="$b"  >/dev/null 2>&1
   done
 }
 
 apply_silent() {
   local target=$1 tier="${2:-med}"
-  local bo co; read -r bo co <<<"$(tier_offsets "$tier")"
+  [[ "$tier" == "high" ]] && ! allows_high "$target" && tier="med"
+  local ct; ct=$(tier_contrast "$tier")
   for p in "${PRESETS[@]}"; do
     IFS='|' read -r n db dc bb bc r g b _ <<<"$p"
     if [[ "$n" == "$target" ]]; then
-      apply_raw \
-        "$(clamp "$(addf "$db" "$bo")")" \
-        "$(addf "$dc" "$co")" \
-        "$(clamp "$(addf "$bb" "$bo")")" \
-        "$(addf "$bc" "$co")" \
-        "$r" "$g" "$b"
+      apply_raw "$db" "$ct" "$bb" "$ct" "$r" "$g" "$b"
       echo "$n|$tier" > "$STATE"
       return 0
     fi
@@ -105,19 +118,15 @@ debounce_apply() {
 
 apply_by_name() {
   local target=$1 tier="${2:-med}"
+  [[ "$tier" == "high" ]] && ! allows_high "$target" && tier="med"
   if apply_silent "$target" "$tier"; then
     for p in "${PRESETS[@]}"; do
       IFS='|' read -r n db dc bb bc r g b desc <<<"$p"
       if [[ "$n" == "$target" ]]; then
-        local bo co; read -r bo co <<<"$(tier_offsets "$tier")"
-        local db2 dc2 bb2 bc2
-        db2=$(clamp "$(addf "$db" "$bo")")
-        dc2=$(clamp_contrast "$(addf "$dc" "$co")")
-        bb2=$(clamp "$(addf "$bb" "$bo")")
-        bc2=$(clamp_contrast "$(addf "$bc" "$co")")
+        local ct; ct=$(clamp_contrast "$(tier_contrast "$tier")")
         echo "applied: $n [$tier] — $desc"
-        echo "  Dell  B=$db2 C=$dc2   gain R=$r G=$g B=$b"
-        echo "  BenQ  B=$bb2 C=$bc2   gain R=$r G=$g B=$b"
+        echo "  contrast (both monitors): $ct   (brightness untouched — adjust manually)"
+        echo "  color gain  R=$r G=$g B=$b"
         return 0
       fi
     done
@@ -129,8 +138,8 @@ apply_by_name() {
 
 snapshot_save() {
   {
-    for tag in "$DELL" "$BENQ"; do
-      for f in brightness contrast redHardwareGain greenHardwareGain blueHardwareGain; do
+    for tag in "${TAGS[@]}"; do
+      for f in hardwareBrightness softwareBrightness contrast redHardwareGain greenHardwareGain blueHardwareGain; do
         v=$("$BD" get --feature="$f" --tagID="$tag" 2>/dev/null)
         echo "$tag $f $v"
       done
@@ -154,17 +163,26 @@ list() {
       "$n" "$db" "$dc" "$bb" "$bc" "$r" "$g" "$b" "$desc"
   done
   echo
-  echo "tiers: low (B-0.15, C-0.25), med (baseline), high (B+0.15, C+0.20, C-cap $CONTRAST_MAX)"
+  echo "tiers (absolute contrast): low=$TIER_LOW_C, med=$TIER_MED_C, high=$TIER_HIGH_C (movies/gaming only); brightness untouched"
   [[ -f "$STATE" ]] && echo "last applied: $(cat "$STATE")"
 }
 
 current() {
-  for tag in "$DELL" "$BENQ"; do
-    label=$([ "$tag" = "$DELL" ] && echo "Dell  (tag $DELL)" || echo "BenQ  (tag $BENQ)")
-    printf "%-16s  B=%-6s C=%-6s\n" \
+  for tag in "${TAGS[@]}"; do
+    case "$tag" in
+      "$DELL") label="Dell  (tag $DELL)" ;;
+      "$BENQ") label="BenQ  (tag $BENQ)" ;;
+      "$MBP")  label="MBP   (tag $MBP)"  ;;
+      *)       label="?     (tag $tag)" ;;
+    esac
+    printf "%-16s  HW-B=%-5s SW-B=%-5s C=%-5s  R=%-5s G=%-5s B=%-5s\n" \
       "$label" \
-      "$("$BD" get --feature=brightness --tagID="$tag")" \
-      "$("$BD" get --feature=contrast   --tagID="$tag")"
+      "$("$BD" get --feature=hardwareBrightness --tagID="$tag")" \
+      "$("$BD" get --feature=softwareBrightness --tagID="$tag")" \
+      "$("$BD" get --feature=contrast           --tagID="$tag")" \
+      "$("$BD" get --feature=redHardwareGain    --tagID="$tag")" \
+      "$("$BD" get --feature=greenHardwareGain  --tagID="$tag")" \
+      "$("$BD" get --feature=blueHardwareGain   --tagID="$tag")"
   done
   [[ -f "$STATE" ]] && echo "last preset: $(cat "$STATE")"
 }
@@ -211,16 +229,16 @@ pick() {
 
   local tier
   tier=$(
-    printf "med\nlow\nhigh\n" \
+    { printf "med\nlow\n"; allows_high "$name" && printf "high\n"; } \
       | fzf \
         --prompt="contrast (live) > " \
         --height=30% --reverse \
         --header="step 2/2 — [$name] pause >${DEBOUNCE_MS}ms to preview, Enter to commit, Esc keeps med" \
         --preview-window="right,40%,wrap" \
         --preview='case {} in
-          med)  echo "baseline contrast — the preset value as-tuned" ;;
-          low)  echo "softer (B-0.15, C-0.25) — flatter, dimmer, easier on eyes" ;;
-          high) echo "punchier (B+0.15, C+0.20) — brighter, deeper blacks" ;;
+          med)  echo "baseline contrast (0.50) — neutral, balanced" ;;
+          low)  echo "soft contrast (0.20) — very flat, easy on eyes" ;;
+          high) echo "punchy contrast (0.80) — deep blacks, vivid" ;;
         esac' \
         --bind="start:execute-silent($self _apply $name med)" \
         --bind="focus:execute-silent($self _debounce $name {})"
