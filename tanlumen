@@ -8,6 +8,7 @@
 #   tanlumen contrast <low|med|high>      # nudge contrast on current preset
 #   tanlumen list                         # list presets
 #   tanlumen current                      # show current values
+#   tanlumen update [tag]                 # self-update from github releases (default: latest)
 #   tanlumen version                      # print version
 
 set -uo pipefail
@@ -241,11 +242,22 @@ pick() {
   apply_by_name "$name" "$tier"
 }
 
+self_update() {
+  local tag="${1:-latest}"
+  command -v curl >/dev/null || { echo "curl is required" >&2; return 1; }
+  echo "current: $VERSION"
+  echo "fetching installer for tag: $tag"
+  TANLUMEN_PREFIX="$(dirname "$(command -v "$0")")" \
+    curl -fsSL https://raw.githubusercontent.com/tanguc/tanlumen/main/install.sh \
+    | bash -s -- "$tag"
+}
+
 case "${1:-pick}" in
   list)     list ;;
   current)  current ;;
   pick)     pick ;;
   contrast) shift; contrast_nudge "${1:-med}" ;;
+  update)   shift; self_update "${1:-latest}" ;;
   version|--version|-V) echo "tanlumen $VERSION" ;;
   _apply)    shift; apply_silent "$1" "${2:-med}" ;;
   _debounce) shift; debounce_apply "$1" "${2:-med}" ;;
