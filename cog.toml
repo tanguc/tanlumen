@@ -1,0 +1,19 @@
+# cocogitto config — https://docs.cocogitto.io
+# only analyze commits since the latest tag (existing pre-conventional history is ignored)
+from_latest_tag = true
+ignore_merge_commits = true
+generate_mono_repository_global_tag = false
+disable_changelog = false
+disable_bump_commit = false
+branch_whitelist = ["main"]
+
+# tag pattern matches existing v0.1.x scheme; release.yml triggers on push of v* tags
+tag_prefix = "v"
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+repository = "tanlumen"
+owner = "tanguc"
+authors = []

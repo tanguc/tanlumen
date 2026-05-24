@@ -1,0 +1,38 @@
+name: auto-release
+
+# bump version + tag + changelog from conventional commits on every push to main.
+# the new tag triggers release.yml which builds & uploads the binary.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    # skip the bump commit cog creates, otherwise we'd loop
+    if: "!startsWith(github.event.head_commit.message, 'chore(version):')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: configure git
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: cocogitto bump
+        uses: cocogitto/cocogitto-action@v3
+        with:
+          release: true
+          git-user: "github-actions[bot]"
+          git-user-email: "github-actions[bot]@users.noreply.github.com"
+
+      - name: push tag + changelog commit
+        run: |
+          git push origin main --follow-tags

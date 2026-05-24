@@ -26,3 +26,16 @@ jobs:
           chmod +x /tmp/tanlumen
           /tmp/tanlumen version
           /tmp/tanlumen --help | head -5
+
+  commit-check:
+    # validate conventional-commits format on new commits since latest tag.
+    # the bump commit cog creates is itself a valid conventional commit (chore(version)),
+    # so this also guards against accidentally landing non-conventional history on main.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cocogitto/cocogitto-action@v3
+        with:
+          check-latest-tag-only: true
