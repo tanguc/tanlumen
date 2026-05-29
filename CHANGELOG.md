@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.2.1](https://github.com/tanguc/tanlumen/compare/6824490d747ad7dd67606cdaf42e080f6ce25d16..v0.2.1) - 2026-05-29
+#### Bug Fixes
+- **(ci)** push lightweight tags explicitly so cog-created v* tags trigger release - ([6824490](https://github.com/tanguc/tanlumen/commit/6824490d747ad7dd67606cdaf42e080f6ce25d16)) - stanguc
+
+- - -
+
 ## [v0.2.0](https://github.com/tanguc/tanlumen/compare/9727dce1c127fd2a39903967823075f5eb5c1e0e..v0.2.0) - 2026-05-28
 #### Documentation
 - refresh README for tiers, update command, MBP tag, and auto-release pipeline - ([9727dce](https://github.com/tanguc/tanlumen/commit/9727dce1c127fd2a39903967823075f5eb5c1e0e)) - stanguc
