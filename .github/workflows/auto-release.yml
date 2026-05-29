@@ -35,4 +35,7 @@ jobs:
 
       - name: push tag + changelog commit
         run: |
-          git push origin main --follow-tags
+          # cog creates lightweight tags which --follow-tags does NOT push;
+          # push commits and tags explicitly so release.yml fires on the new v* tag
+          git push origin main
+          git push origin --tags
